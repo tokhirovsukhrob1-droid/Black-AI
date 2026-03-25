@@ -4,6 +4,7 @@ import os
 import requests
 
 app = FastAPI()
+user_limits = {}
 API_KEY = os.getenv("OPENAI_API_KEY")
 
 @app.get("/", response_class=HTMLResponse)
@@ -178,9 +179,18 @@ def home():
 
 @app.post("/chat")
 async def chat(request: Request):
+    ip = request.client.host
+
+    if ip not in user_limits:
+        user_limits[ip] = 0
+
+    if user_limits[ip] >= 10:
+        return JSONResponse({"error": "Limit reached"}, status_code=429)
+
+    user_limits[ip] += 1
+remaining = 10 - user_limits[ip]
     if not API_KEY:
         return {"error": "API key not found"}
-
     data = await request.json()
     messages = data.get("messages", [])
 
@@ -205,7 +215,10 @@ async def chat(request: Request):
 
         result = response.json()
         reply = result["choices"][0]["message"]["content"]
-        return JSONResponse({"reply": reply})
+        return JSONResponse({
+    "reply": reply,
+    "remaining": remaining
+})
 
     except Exception as e:
         return {"error": str(e)}
