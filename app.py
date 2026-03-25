@@ -4,7 +4,6 @@ import os
 import requests
 
 app = FastAPI()
-
 API_KEY = os.getenv("OPENAI_API_KEY")
 
 @app.get("/", response_class=HTMLResponse)
@@ -23,7 +22,7 @@ def home():
                 color: white;
             }
             .container {
-                max-width: 800px;
+                max-width: 900px;
                 margin: 0 auto;
                 padding: 20px;
             }
@@ -33,22 +32,24 @@ def home():
             }
             #chat-box {
                 background: #111;
-                border: 1px solid #333;
-                border-radius: 12px;
-                min-height: 400px;
-                padding: 15px;
+                border: 1px solid #2a2a2a;
+                border-radius: 16px;
+                height: 500px;
+                padding: 16px;
                 overflow-y: auto;
-                margin-bottom: 15px;
+                margin-bottom: 16px;
+                box-shadow: 0 0 20px rgba(0,0,0,0.25);
             }
             .msg {
                 margin: 10px 0;
-                padding: 10px 14px;
-                border-radius: 10px;
+                padding: 12px 14px;
+                border-radius: 14px;
                 max-width: 80%;
                 white-space: pre-wrap;
+                line-height: 1.5;
             }
             .user {
-                background: #2563eb;
+                background: #4f6bed;
                 margin-left: auto;
                 text-align: right;
             }
@@ -63,23 +64,29 @@ def home():
             input {
                 flex: 1;
                 padding: 14px;
-                border-radius: 10px;
-                border: 1px solid #333;
+                border-radius: 12px;
+                border: 1px solid #2a2a2a;
                 background: #111;
                 color: white;
                 font-size: 16px;
+                outline: none;
             }
             button {
                 padding: 14px 18px;
                 border: none;
-                border-radius: 10px;
-                background: #2563eb;
+                border-radius: 12px;
+                background: #4f6bed;
                 color: white;
                 font-size: 16px;
                 cursor: pointer;
             }
             button:hover {
-                opacity: 0.9;
+                opacity: 0.92;
+            }
+            .avatar {
+                font-size: 13px;
+                opacity: 0.7;
+                margin-bottom: 4px;
             }
         </style>
     </head>
@@ -94,63 +101,76 @@ def home():
         </div>
 
         <script>
+            let history = [];
+
+            function addMessage(role, text) {
+                const chatBox = document.getElementById("chat-box");
+                const wrapper = document.createElement("div");
+
+                const avatar = document.createElement("div");
+                avatar.className = "avatar";
+                avatar.textContent = role === "user" ? "You" : "Black AI";
+
+                const msg = document.createElement("div");
+                msg.className = "msg " + (role === "user" ? "user" : "ai");
+                msg.textContent = text;
+
+                wrapper.appendChild(avatar);
+                wrapper.appendChild(msg);
+                chatBox.appendChild(wrapper);
+                chatBox.scrollTop = chatBox.scrollHeight;
+                return msg;
+            }
+
             async function sendMessage() {
                 const input = document.getElementById("message");
-                const chatBox = document.getElementById("chat-box");
                 const text = input.value.trim();
-
                 if (!text) return;
 
-                const userDiv = document.createElement("div");
-                userDiv.className = "msg user";
-                userDiv.textContent = text;
-                chatBox.appendChild(userDiv);
-
+                history.push({ role: "user", content: text });
+                addMessage("user", text);
                 input.value = "";
 
-                const loadingDiv = document.createElement("div");
-                loadingDiv.className = "msg ai";
-                loadingDiv.textContent = "Typing...";
-                chatBox.appendChild(loadingDiv);
-
-                chatBox.scrollTop = chatBox.scrollHeight;
+                const typing = addMessage("ai", "Typing...");
 
                 try {
                     const res = await fetch("/chat", {
                         method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({ message: text })
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ messages: history })
                     });
 
                     const data = await res.json();
 
-                    loadingDiv.remove();
+                    typing.textContent = "";
 
-                    const aiDiv = document.createElement("div");
-                    aiDiv.className = "msg ai";
-
-                    if (data.choices && data.choices[0] && data.choices[0].message) {
-                        aiDiv.textContent = data.choices[0].message.content;
-                    } else if (data.response) {
-                        aiDiv.textContent = data.response;
+                    let reply = "Error";
+                    if (data.reply) {
+                        reply = data.reply;
                     } else if (data.error) {
-                        aiDiv.textContent = "Error: " + data.error;
-                    } else {
-                        aiDiv.textContent = JSON.stringify(data);
+                        reply = "Error: " + data.error;
                     }
 
-                    chatBox.appendChild(aiDiv);
-                    chatBox.scrollTop = chatBox.scrollHeight;
+                    history.push({ role: "assistant", content: reply });
+
+                    let i = 0;
+                    const timer = setInterval(() => {
+                        typing.textContent = reply.slice(0, i);
+                        i++;
+                        if (i > reply.length) clearInterval(timer);
+                    }, 12);
                 } catch (err) {
-                    loadingDiv.remove();
-                    const errDiv = document.createElement("div");
-                    errDiv.className = "msg ai";
-                    errDiv.textContent = "Error: " + err;
-                    chatBox.appendChild(errDiv);
+                    typing.textContent = "Error: " + err;
                 }
             }
+
+            document.getElementById("message").addEventListener("keydown", function(e) {
+                if (e.key === "Enter") {
+                    sendMessage();
+                }
+            });
+
+            addMessage("ai", "Hello! How can I assist you today?");
         </script>
     </body>
     </html>
@@ -162,10 +182,10 @@ async def chat(request: Request):
         return {"error": "API key not found"}
 
     data = await request.json()
-    user_message = data.get("message", "")
+    messages = data.get("messages", [])
 
-    if not user_message:
-        return {"error": "No message provided"}
+    if not messages:
+        return {"error": "No messages provided"}
 
     try:
         response = requests.post(
@@ -176,16 +196,16 @@ async def chat(request: Request):
             },
             json={
                 "model": "gpt-4o-mini",
-                "messages": [
-                    {"role": "user", "content": user_message}
-                ]
+                "messages": messages
             }
         )
 
         if response.status_code != 200:
             return {"error": response.text}
 
-        return JSONResponse(response.json())
+        result = response.json()
+        reply = result["choices"][0]["message"]["content"]
+        return JSONResponse({"reply": reply})
 
     except Exception as e:
         return {"error": str(e)}
