@@ -187,10 +187,11 @@ async def chat(request: Request):
     if user_limits[ip] >= 10:
         return JSONResponse({"error": "Limit reached"}, status_code=429)
 
-    user_limits[ip] += 1
-remaining = 10 - user_limits[ip]
-    if not API_KEY:
-        return {"error": "API key not found"}
+   user_limits[ip] += 1
+remaining = max(0, 10 - user_limits[ip])
+
+if not API_KEY:
+    return {"error": "API key not found"}
     data = await request.json()
     messages = data.get("messages", [])
 
