@@ -13,13 +13,13 @@ def home():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Black AI</title>
+        <title>ShadowAI</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
             body {
                 margin: 0;
                 font-family: Arial, sans-serif;
-                background: #0b0b0b;
+                background: linear-gradient(135deg, #0b0b0b, #1a0033);
                 color: white;
             }
             .container {
@@ -50,7 +50,7 @@ def home():
                 line-height: 1.5;
             }
             .user {
-                background: #4f6bed;
+                background: #7c3aed;
                 margin-left: auto;
                 text-align: right;
             }
@@ -93,7 +93,7 @@ def home():
     </head>
     <body>
         <div class="container">
-            <h1>Black AI 🤖</h1>
+            <h1>ShadowAI 🌑</h1>
             <div id="chat-box"></div>
             <div class="row">
                 <input id="message" type="text" placeholder="Write something..." />
@@ -110,7 +110,7 @@ def home():
 
                 const avatar = document.createElement("div");
                 avatar.className = "avatar";
-                avatar.textContent = role === "user" ? "You" : "Black AI";
+                avatar.textContent = role === "user" ? "You" : "ShadowAI";
 
                 const msg = document.createElement("div");
                 msg.className = "msg " + (role === "user" ? "user" : "ai");
@@ -171,7 +171,7 @@ def home():
                 }
             });
 
-            addMessage("ai", "Hello! How can I assist you today?");
+            addMessage("ai", "Welcome to ShadowAI 🌑. Ask me anything...");
         </script>
     </body>
     </html>
