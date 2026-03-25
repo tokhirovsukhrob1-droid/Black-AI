@@ -1,36 +1,50 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse
 import os
-from openai import OpenAI
+import requests
 
 app = FastAPI()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# API key (Vercel env dan olinadi)
+API_KEY = os.getenv("OPENAI_API_KEY")
 
-@app.get("/", response_class=HTMLResponse)
+
+@app.get("/")
 def home():
-    return """
-    <html>
-        <head><title>Black AI</title></head>
-        <body style="background:black;color:white;text-align:center;">
-            <h1>Black AI 🚀</h1>
-            <p>AI is connected ✅</p>
-        </body>
-    </html>
-    """
+    return {"message": "AI is working 🚀"}
+
 
 @app.post("/chat")
 async def chat(request: Request):
+
+    # API key tekshiruv
+    if not API_KEY:
+        return {"error": "API key not found"}
+
+    # userdan data olish
     data = await request.json()
-    user_message = data.get("message")
+    user_message = data.get("message", "")
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "user", "content": user_message}
-        ]
-    )
+    # message tekshiruv
+    if not user_message:
+        return {"error": "No message provided"}
 
-    return JSONResponse({
-        "response": response.choices[0].message.content
-    })
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "user", "content": user_message}
+                ]
+            }
+        )
+
+        return JSONResponse(response.json())
+
+    except Exception as e:
+        return {"error": str(e)}
