@@ -7,6 +7,7 @@ app = FastAPI()
 user_limits = {}
 API_KEY = os.getenv("OPENAI_API_KEY")
 
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return """
@@ -89,6 +90,12 @@ def home():
                 opacity: 0.7;
                 margin-bottom: 4px;
             }
+            .left-count {
+                font-size: 12px;
+                color: #9ca3af;
+                margin-top: 6px;
+                margin-bottom: 8px;
+            }
         </style>
     </head>
     <body>
@@ -123,6 +130,15 @@ def home():
                 return msg;
             }
 
+            function addRemainingCount(count) {
+                const chatBox = document.getElementById("chat-box");
+                const left = document.createElement("div");
+                left.className = "left-count";
+                left.textContent = "Messages left: " + count;
+                chatBox.appendChild(left);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
             async function sendMessage() {
                 const input = document.getElementById("message");
                 const text = input.value.trim();
@@ -142,7 +158,6 @@ def home():
                     });
 
                     const data = await res.json();
-
                     typing.textContent = "";
 
                     let reply = "Error";
@@ -160,6 +175,11 @@ def home():
                         i++;
                         if (i > reply.length) clearInterval(timer);
                     }, 12);
+
+                    if (data.remaining !== undefined) {
+                        addRemainingCount(data.remaining);
+                    }
+
                 } catch (err) {
                     typing.textContent = "Error: " + err;
                 }
@@ -177,6 +197,7 @@ def home():
     </html>
     """
 
+
 @app.post("/chat")
 async def chat(request: Request):
     ip = request.client.host
@@ -187,11 +208,12 @@ async def chat(request: Request):
     if user_limits[ip] >= 10:
         return JSONResponse({"error": "Limit reached"}, status_code=429)
 
-   user_limits[ip] += 1
-remaining = max(0, 10 - user_limits[ip])
+    user_limits[ip] += 1
+    remaining = max(0, 10 - user_limits[ip])
 
-if not API_KEY:
-    return {"error": "API key not found"}
+    if not API_KEY:
+        return {"error": "API key not found"}
+
     data = await request.json()
     messages = data.get("messages", [])
 
@@ -216,10 +238,11 @@ if not API_KEY:
 
         result = response.json()
         reply = result["choices"][0]["message"]["content"]
+
         return JSONResponse({
-    "reply": reply,
-    "remaining": remaining
-})
+            "reply": reply,
+            "remaining": remaining
+        })
 
     except Exception as e:
         return {"error": str(e)}
