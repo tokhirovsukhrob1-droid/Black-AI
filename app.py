@@ -4,7 +4,9 @@ import os
 import requests
 
 app = FastAPI()
+
 user_limits = {}
+paid_users = []  # premium user IP larini shu yerga qo‘shasan
 API_KEY = os.getenv("OPENAI_API_KEY")
 
 
@@ -96,6 +98,11 @@ def home():
                 margin-top: 6px;
                 margin-bottom: 8px;
             }
+            .upgrade {
+                margin-top: 10px;
+                color: #facc15;
+                font-size: 13px;
+            }
         </style>
     </head>
     <body>
@@ -136,6 +143,15 @@ def home():
                 left.className = "left-count";
                 left.textContent = "Messages left: " + count;
                 chatBox.appendChild(left);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            function addUpgradeText() {
+                const chatBox = document.getElementById("chat-box");
+                const up = document.createElement("div");
+                up.className = "upgrade";
+                up.textContent = "Upgrade to Premium 💎";
+                chatBox.appendChild(up);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
 
@@ -180,6 +196,10 @@ def home():
                         addRemainingCount(data.remaining);
                     }
 
+                    if (data.error && data.error.includes("Premium")) {
+                        addUpgradeText();
+                    }
+
                 } catch (err) {
                     typing.textContent = "Error: " + err;
                 }
@@ -205,11 +225,15 @@ async def chat(request: Request):
     if ip not in user_limits:
         user_limits[ip] = 0
 
-    if user_limits[ip] >= 10:
-        return JSONResponse({"error": "Limit reached"}, status_code=429)
+    limit = 1000 if ip in paid_users else 10
+
+    if user_limits[ip] >= limit:
+        return JSONResponse({
+            "error": "Upgrade to Premium 💎"
+        }, status_code=429)
 
     user_limits[ip] += 1
-    remaining = max(0, 10 - user_limits[ip])
+    remaining = max(0, limit - user_limits[ip])
 
     if not API_KEY:
         return {"error": "API key not found"}
